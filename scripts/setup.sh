@@ -12,8 +12,7 @@ command -v kagent >/dev/null || { echo "install kagent: brew install kagent"; ex
 command -v mirrord >/dev/null || { echo "install mirrord: brew install metalbear-co/mirrord/mirrord"; exit 1; }
 command -v docker >/dev/null || { echo "install docker"; exit 1; }
 
-[ -z "$OPENAI_API_KEY" ] && { echo "set OPENAI_API_KEY"; exit 1; }
-[ -z "$SERPER_API_KEY" ] && { echo "set SERPER_API_KEY (free at serper.dev)"; exit 1; }
+[ -z "$OPENAI_API_KEY" ] && { echo "set OPENAI_API_KEY (only API key required for this demo)"; exit 1; }
 
 if [ "$CLUSTER" = "minikube" ]; then
   command -v minikube >/dev/null || { echo "install minikube: brew install minikube"; exit 1; }
@@ -59,7 +58,6 @@ echo "kagent may use different pod labels - continuing..."
 echo "==> creating secrets"
 kubectl create secret generic research-crew-secrets \
   --from-literal=OPENAI_API_KEY="$OPENAI_API_KEY" \
-  --from-literal=SERPER_API_KEY="$SERPER_API_KEY" \
   -n kagent \
   --dry-run=client -o yaml | kubectl apply -f -
 

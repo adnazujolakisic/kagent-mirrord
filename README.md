@@ -74,9 +74,8 @@ This is not just a faster dev loop. It is runtime agent substitution — replaci
 - **mirrord** — `brew install metalbear-co/mirrord/mirrord`
 - **Docker** — for building images
 
-**API keys:**
-- **OPENAI_API_KEY** — standard OpenAI key
-- **SERPER_API_KEY** — free at [serper.dev](https://serper.dev), no credit card needed
+**API keys (hackathon-friendly):**
+- **OPENAI_API_KEY** — the only key this repo needs. The BYO crew uses the OpenAI API only (no Serper, no extra search APIs). The `kagent install --profile demo` orchestrator also expects a working model config; the demo profile is typically OpenAI-compatible, so this one key covers both.
 
 **Note:** The `kagent-crewai` package is on PyPI. If you need the latest from source:
 ```bash
@@ -92,9 +91,8 @@ pip install git+https://github.com/kagent-dev/kagent.git#subdirectory=python/pac
 git clone https://github.com/YOUR_USERNAME/kagent-mirrord
 cd kagent-mirrord
 
-# 2. set your API keys
+# 2. set your OpenAI API key (only external key required)
 export OPENAI_API_KEY=sk-...
-export SERPER_API_KEY=...
 
 # 3. run setup (creates minikube cluster, builds image, deploys agents)
 chmod +x scripts/setup.sh && ./scripts/setup.sh
@@ -123,7 +121,6 @@ mirrord exec -f mirrord/research-crew.json -- python crew/main.py
 mirrord agent started
 stealing traffic from deployment/research-crew
 env: OPENAI_API_KEY loaded from pod
-env: SERPER_API_KEY loaded from pod
 waiting for A2A requests...
 ```
 
@@ -137,7 +134,7 @@ You get a full research summary back. Your local code handled it. The deployed r
 **Now make it memorable:**
 
 1. Open `crew/crew.py`
-2. Replace the summarizer block (lines 20–27) with the sarcastic version at the bottom of the file (uncomment that block)
+2. Replace the summarizer block with the sarcastic version at the bottom of the file (uncomment that block)
 3. Ctrl+C mirrord and restart it
 4. Run the same `kagent invoke` command again
 
@@ -168,7 +165,7 @@ mirrord exec -f mirrord/research-crew.json -- python crew/main.py
 
 **Same behavior without a config file:**
 ```bash
-mirrord exec -t deployment/research-crew -n kagent --steal -s "OPENAI_API_KEY;SERPER_API_KEY" -- python crew/main.py
+mirrord exec -t deployment/research-crew -n kagent --steal -s "OPENAI_API_KEY" -- python crew/main.py
 ```
 
 `deploy/research-crew` is accepted as an alias for `deployment/research-crew`. Without `--steal` or the JSON `incoming.mode`, traffic is mirrored instead of redirected to your laptop.
@@ -213,7 +210,7 @@ What to watch for when demoing: the Kubernetes `Deployment` must be named `resea
       }
     },
     "env": {
-      "include": "OPENAI_API_KEY;SERPER_API_KEY"  // pull secrets from pod
+      "include": "OPENAI_API_KEY"  // pull LLM secret from pod
     }
   }
 }

@@ -10,7 +10,7 @@
       }
     },
     "env": {
-      "include": "OPENAI_API_KEY;SERPER_API_KEY"
+      "include": "OPENAI_API_KEY"
     }
   }
 }

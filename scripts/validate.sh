@@ -18,11 +18,15 @@ done
 echo "  kubectl, kagent, mirrord, docker: OK"
 
 echo "==> Validating YAML..."
-# Basic YAML check - kubectl apply --dry-run if we have a cluster
+# kubectl client dry-run when cluster exists and kagent CRDs are installed
 if kubectl cluster-info &>/dev/null; then
-  kubectl apply -f agents/research-crew.yaml --dry-run=client
-  kubectl apply -f agents/orchestrator.yaml --dry-run=client
-  echo "  Agent YAML: valid"
+  if kubectl get crd agents.kagent.dev &>/dev/null; then
+    kubectl apply -f agents/research-crew.yaml --dry-run=client
+    kubectl apply -f agents/orchestrator.yaml --dry-run=client
+    echo "  Agent YAML: valid (cluster has kagent CRDs)"
+  else
+    echo "  (kagent CRDs not installed yet — run ./scripts/setup.sh first; skipping Agent dry-run)"
+  fi
 else
   echo "  (No cluster - skipping kubectl dry-run)"
 fi

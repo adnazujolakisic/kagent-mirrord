@@ -6,7 +6,7 @@ app = KAgentApp(
     crew=ResearchCrew().crew(),
     agent_card={
         "name": "research-crew",
-        "description": "A research agent that searches the web and summarizes findings",
+        "description": "A research-style agent (LLM synthesis only) that summarizes findings",
         "version": "0.1.0",
         "capabilities": {"streaming": True},
         "defaultInputModes": ["text"],

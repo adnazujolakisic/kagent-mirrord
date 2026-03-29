@@ -5,7 +5,7 @@ WORKDIR /app
 RUN pip install uv
 
 COPY pyproject.toml .
-RUN uv pip install --system crewai "crewai-tools>=0.20.0" kagent-crewai uvicorn
+RUN uv pip install --system crewai kagent-crewai uvicorn
 
 COPY . .
 
