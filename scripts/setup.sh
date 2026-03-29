@@ -66,10 +66,13 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 if [ "$CLUSTER" = "minikube" ]; then
-  # Minikube: build and load directly - no registry needed
-  docker build -t research-crew:latest "$REPO_ROOT/crew"
-  minikube image load research-crew:latest
-  # Use simple image name for minikube (image is in minikube's cache)
+  # Build inside minikube's Docker daemon so research-crew:latest always matches what
+  # kubelet pulls (minikube image load can leave nodes on an old :latest digest).
+  echo "==> building research-crew image (minikube docker env)"
+  (
+    eval "$(minikube docker-env)"
+    docker build -t research-crew:latest "$REPO_ROOT/crew"
+  )
   sed "s|localhost:5001/research-crew:latest|research-crew:latest|g" \
     "$REPO_ROOT/agents/research-crew.yaml" | kubectl apply -f -
 else
