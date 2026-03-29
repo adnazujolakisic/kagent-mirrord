@@ -1,0 +1,20 @@
+apiVersion: kagent.dev/v1alpha2
+kind: Agent
+metadata:
+  name: orchestrator
+  namespace: kagent
+spec:
+  type: Declarative
+  description: "Orchestrator that routes research tasks to the research-crew agent"
+  declarative:
+    modelConfig: default-model-config
+    systemMessage: |
+      You are an orchestrator agent. When the user asks you to research a topic,
+      delegate the task to the research-crew agent using your available tools.
+      Always use the research-crew for any research or web search tasks.
+      Summarize the results clearly for the user.
+    tools:
+      - type: Agent
+        agent:
+          name: research-crew
+          namespace: kagent

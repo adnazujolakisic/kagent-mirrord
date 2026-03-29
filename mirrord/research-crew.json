@@ -1,0 +1,16 @@
+{
+  "target": {
+    "path": "deployment/research-crew",
+    "namespace": "kagent"
+  },
+  "feature": {
+    "network": {
+      "incoming": {
+        "mode": "steal"
+      }
+    },
+    "env": {
+      "include": "OPENAI_API_KEY;SERPER_API_KEY"
+    }
+  }
+}

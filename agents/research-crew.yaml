@@ -1,0 +1,22 @@
+apiVersion: kagent.dev/v1alpha2
+kind: Agent
+metadata:
+  name: research-crew
+  namespace: kagent
+spec:
+  type: BYO
+  description: "A CrewAI research agent that searches the web and summarizes findings"
+  byo:
+    deployment:
+      image: localhost:5001/research-crew:latest
+      env:
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: research-crew-secrets
+              key: OPENAI_API_KEY
+        - name: SERPER_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: research-crew-secrets
+              key: SERPER_API_KEY
