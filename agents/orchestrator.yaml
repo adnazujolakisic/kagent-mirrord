@@ -7,7 +7,7 @@ spec:
   type: Declarative
   description: "Orchestrator that routes research tasks to the research-crew agent"
   declarative:
-    modelConfig: default-model-config
+    modelConfig: claude-model-config
     systemMessage: |
       You are an orchestrator agent. When the user asks you to research a topic,
       delegate the task to the research-crew agent using your available tools.

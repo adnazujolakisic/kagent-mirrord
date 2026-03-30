@@ -1,7 +1,7 @@
 from crewai import Agent, Crew, Task, Process
 
-# Single LLM key only (OPENAI_API_KEY). No web-search API — researcher reasons from the model.
-_DEFAULT_LLM = "gpt-4o-mini"
+# Single key: ANTHROPIC_API_KEY. Claude via CrewAI / Anthropic API. No web-search tool.
+_DEFAULT_LLM = "claude-3-5-sonnet-20241022"
 
 
 class ResearchCrew:

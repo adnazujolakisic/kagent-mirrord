@@ -21,6 +21,7 @@ echo "==> Validating YAML..."
 # kubectl client dry-run when cluster exists and kagent CRDs are installed
 if kubectl cluster-info &>/dev/null; then
   if kubectl get crd agents.kagent.dev &>/dev/null; then
+    kubectl apply -f agents/claude-model-config.yaml --dry-run=client
     kubectl apply -f agents/research-crew.yaml --dry-run=client
     kubectl apply -f agents/orchestrator.yaml --dry-run=client
     echo "  Agent YAML: valid (cluster has kagent CRDs)"

@@ -10,8 +10,8 @@ spec:
     deployment:
       image: localhost:5001/research-crew:latest
       env:
-        - name: OPENAI_API_KEY
+        - name: ANTHROPIC_API_KEY
           valueFrom:
             secretKeyRef:
               name: research-crew-secrets
-              key: OPENAI_API_KEY
+              key: ANTHROPIC_API_KEY

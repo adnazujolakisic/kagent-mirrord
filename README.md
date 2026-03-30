@@ -75,7 +75,10 @@ This is not just a faster dev loop. It is runtime agent substitution — replaci
 - **Docker** — for building images
 
 **API keys (hackathon-friendly):**
-- **OPENAI_API_KEY** — the only key this repo needs. The BYO crew uses the OpenAI API only (no Serper, no extra search APIs). The `kagent install --profile demo` orchestrator also expects a working model config; the demo profile is typically OpenAI-compatible, so this one key covers both.
+- **ANTHROPIC_API_KEY** — one [Claude / Anthropic](https://console.anthropic.com/) key for everything. `./scripts/setup.sh` writes it into:
+  - **`kagent-anthropic`** + **`ModelConfig` `claude-model-config`** — declarative **orchestrator** (Claude `claude-3-5-sonnet-20241022`).
+  - **`research-crew-secrets`** — BYO **research-crew** (same model via CrewAI).
+  Optional: put it in **`.env`** (gitignored); see `.env.example`.
 
 **Note:** The `kagent-crewai` package is on PyPI. If you need the latest from source:
 ```bash
@@ -91,8 +94,8 @@ pip install git+https://github.com/kagent-dev/kagent.git#subdirectory=python/pac
 git clone https://github.com/YOUR_USERNAME/kagent-mirrord
 cd kagent-mirrord
 
-# 2. set your OpenAI API key (only external key required)
-export OPENAI_API_KEY=sk-...
+# 2. set your Anthropic API key (see .env.example)
+export ANTHROPIC_API_KEY=sk-ant-...
 
 # 3. run setup (creates minikube cluster, builds image, deploys agents)
 chmod +x scripts/setup.sh && ./scripts/setup.sh
@@ -120,7 +123,7 @@ mirrord exec -f mirrord/research-crew.json -- python crew/main.py
 ```
 mirrord agent started
 stealing traffic from deployment/research-crew
-env: OPENAI_API_KEY loaded from pod
+env: ANTHROPIC_API_KEY loaded from pod
 waiting for A2A requests...
 ```
 
@@ -165,7 +168,7 @@ mirrord exec -f mirrord/research-crew.json -- python crew/main.py
 
 **Same behavior without a config file:**
 ```bash
-mirrord exec -t deployment/research-crew -n kagent --steal -s "OPENAI_API_KEY" -- python crew/main.py
+mirrord exec -t deployment/research-crew -n kagent --steal -s "ANTHROPIC_API_KEY" -- python crew/main.py
 ```
 
 `deploy/research-crew` is accepted as an alias for `deployment/research-crew`. Without `--steal` or the JSON `incoming.mode`, traffic is mirrored instead of redirected to your laptop.
@@ -184,12 +187,16 @@ What to watch for when demoing: the Kubernetes `Deployment` must be named `resea
 | research-crew pod not ready | `kubectl get pods -n kagent` — `kubectl describe pod …` on the failing pod |
 | Image pull errors (minikube) | Re-run `docker build -t research-crew:latest crew` then `minikube image load research-crew:latest` |
 | Orchestrator errors | `kubectl get agents -n kagent` — both `research-crew` and `orchestrator` should exist |
+| Orchestrator **`401` / auth errors | Re-run `./scripts/setup.sh` so **`kagent-anthropic`** and **`claude-model-config`** match your key. Or: `kubectl create secret generic kagent-anthropic --from-literal=ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" -n kagent -o yaml --dry-run=client | kubectl apply -f -` then `kubectl rollout restart deployment/orchestrator -n kagent`. |
+| Anthropic **rate limits / billing** | Check [Anthropic console](https://console.anthropic.com/) for credits, plan limits, and key validity. |
+| `kagent install` / Helm `403` from `ghcr.io` | Stale Helm credentials often cause false **denied** on public charts. Run **`helm registry logout ghcr.io`** then **`kagent install --profile demo`** again. |
+| Stale `research-crew:latest` on minikube | Setup uses **host** `docker build` then `minikube image load … --overwrite=true`. If builds fail inside minikube’s Docker, avoid `minikube docker-env` (Docker Hub DNS often breaks there). |
 
 ## Project layout
 
 | Path | Role |
 |------|------|
-| `agents/` | kagent `Agent` CRDs: BYO research-crew + declarative orchestrator |
+| `agents/` | `Agent` CRDs + `ModelConfig` `claude-model-config` (Claude for orchestrator) |
 | `crew/` | CrewAI app + Dockerfile consumed by the BYO image |
 | `mirrord/research-crew.json` | Steal + env from the live research-crew deployment |
 | `scripts/setup.sh` | Idempotent cluster + image + apply |
@@ -210,7 +217,7 @@ What to watch for when demoing: the Kubernetes `Deployment` must be named `resea
       }
     },
     "env": {
-      "include": "OPENAI_API_KEY"  // pull LLM secret from pod
+      "include": "ANTHROPIC_API_KEY"  // pull Claude secret from pod
     }
   }
 }

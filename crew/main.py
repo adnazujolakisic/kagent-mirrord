@@ -8,7 +8,6 @@ app = KAgentApp(
         "name": "research-crew",
         "description": "A research-style agent (LLM synthesis only) that summarizes findings",
         "version": "0.1.0",
-        # Required by a2a.types.AgentCard (kagent-crewai validates at import).
         "url": "http://127.0.0.1:8080/",
         "skills": [],
         "capabilities": {"streaming": True},

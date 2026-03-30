@@ -1,6 +1,15 @@
 #!/bin/bash
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+if [ -f "$REPO_ROOT/.env" ]; then
+  set -a
+  # shellcheck disable=SC1091
+  source "$REPO_ROOT/.env"
+  set +a
+fi
+
 # Supports minikube (default) or kind. Use CLUSTER=kind for kind.
 CLUSTER="${CLUSTER:-minikube}"
 REGISTRY_PORT="5001"
@@ -12,7 +21,11 @@ command -v kagent >/dev/null || { echo "install kagent: brew install kagent"; ex
 command -v mirrord >/dev/null || { echo "install mirrord: brew install metalbear-co/mirrord/mirrord"; exit 1; }
 command -v docker >/dev/null || { echo "install docker"; exit 1; }
 
-[ -z "$OPENAI_API_KEY" ] && { echo "set OPENAI_API_KEY (only API key required for this demo)"; exit 1; }
+[ -z "$ANTHROPIC_API_KEY" ] && {
+  echo "set ANTHROPIC_API_KEY in .env or your environment (Claude for orchestrator + research-crew)."
+  echo "If you still have OPENAI_API_KEY from an older checkout, rename that line to ANTHROPIC_API_KEY in .env."
+  exit 1
+}
 
 if [ "$CLUSTER" = "minikube" ]; then
   command -v minikube >/dev/null || { echo "install minikube: brew install minikube"; exit 1; }
@@ -48,6 +61,10 @@ EOF
 fi
 
 echo "==> installing kagent"
+# Stale ghcr.io credentials in Helm often cause 403 "denied" on public kagent charts.
+if command -v helm >/dev/null 2>&1; then
+  helm registry logout ghcr.io 2>/dev/null || true
+fi
 kagent install --profile demo
 
 echo "==> waiting for kagent to be ready"
@@ -55,24 +72,27 @@ kubectl wait --for=condition=ready pod -l app=kagent-engine -n kagent --timeout=
 kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=kagent -n kagent --timeout=120s 2>/dev/null || \
 echo "kagent may use different pod labels - continuing..."
 
-echo "==> creating secrets"
+echo "==> configuring Anthropic secret + ModelConfig (declarative orchestrator uses Claude)"
+kubectl create secret generic kagent-anthropic \
+  --from-literal=ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" \
+  -n kagent \
+  --dry-run=client -o yaml | kubectl apply -f -
+kubectl apply -f "$REPO_ROOT/agents/claude-model-config.yaml"
+
+echo "==> creating secrets for BYO research-crew"
 kubectl create secret generic research-crew-secrets \
-  --from-literal=OPENAI_API_KEY="$OPENAI_API_KEY" \
+  --from-literal=ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" \
   -n kagent \
   --dry-run=client -o yaml | kubectl apply -f -
 
 echo "==> building research-crew image"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-
 if [ "$CLUSTER" = "minikube" ]; then
-  # Build inside minikube's Docker daemon so research-crew:latest always matches what
-  # kubelet pulls (minikube image load can leave nodes on an old :latest digest).
-  echo "==> building research-crew image (minikube docker env)"
-  (
-    eval "$(minikube docker-env)"
-    docker build -t research-crew:latest "$REPO_ROOT/crew"
-  )
+  # Host Docker build + load into minikube. Building inside `minikube docker-env` often
+  # breaks Docker Hub DNS (e.g. registry-1.docker.io lookup failures). `--overwrite` ensures
+  # a fresh digest for :latest replaces any stale image on the node.
+  echo "==> building research-crew image (host docker -> minikube load)"
+  docker build -t research-crew:latest "$REPO_ROOT/crew"
+  minikube image load research-crew:latest --overwrite=true
   sed "s|localhost:5001/research-crew:latest|research-crew:latest|g" \
     "$REPO_ROOT/agents/research-crew.yaml" | kubectl apply -f -
 else
