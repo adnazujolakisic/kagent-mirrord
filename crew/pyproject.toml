@@ -9,6 +9,9 @@ dependencies = [
     "uvicorn>=0.30.0",
 ]
 
+[tool.hatch.build.targets.wheel]
+only-include = ["crew.py", "main.py"]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

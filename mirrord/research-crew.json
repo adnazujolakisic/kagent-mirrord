@@ -10,7 +10,12 @@
       }
     },
     "env": {
-      "include": "ANTHROPIC_API_KEY"
+      "include": "ANTHROPIC_API_KEY",
+      "override": {
+        "KAGENT_URL": "http://kagent-controller.kagent.svc.cluster.local:8083",
+        "KAGENT_NAME": "research-crew",
+        "KAGENT_NAMESPACE": "kagent"
+      }
     }
   }
 }

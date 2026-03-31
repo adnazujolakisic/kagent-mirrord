@@ -87,13 +87,13 @@ kubectl create secret generic research-crew-secrets \
 
 echo "==> building research-crew image"
 if [ "$CLUSTER" = "minikube" ]; then
-  # Host Docker build + load into minikube. Building inside `minikube docker-env` often
-  # breaks Docker Hub DNS (e.g. registry-1.docker.io lookup failures). `--overwrite` ensures
-  # a fresh digest for :latest replaces any stale image on the node.
-  echo "==> building research-crew image (host docker -> minikube load)"
-  docker build -t research-crew:latest "$REPO_ROOT/crew"
-  minikube image load research-crew:latest --overwrite=true
-  sed "s|localhost:5001/research-crew:latest|research-crew:latest|g" \
+  # Host Docker build + load into minikube. Use a fixed tag (not :latest) so kubelet always
+  # runs the image you just loaded; :latest often leaves two ReplicaSets (old digest + new).
+  MIRRD_CREW_TAG="research-crew:mirrord-local"
+  echo "==> building research-crew image (host docker -> minikube load as $MIRRD_CREW_TAG)"
+  docker build -t "$MIRRD_CREW_TAG" "$REPO_ROOT/crew"
+  minikube image load "$MIRRD_CREW_TAG" --overwrite=true
+  sed "s|localhost:5001/research-crew:latest|$MIRRD_CREW_TAG|g" \
     "$REPO_ROOT/agents/research-crew.yaml" | kubectl apply -f -
 else
   docker build -t "${REGISTRY_ADDR}/research-crew:latest" "$REPO_ROOT/crew"
@@ -120,6 +120,6 @@ echo ""
 echo "test the chain:"
 echo "  kagent invoke --agent orchestrator --task 'Research what kagent is'"
 echo ""
-echo "start mirrord dev session:"
-echo "  mirrord exec -f mirrord/research-crew.json -- python crew/main.py"
+echo "start mirrord dev session (creates/uses .venv — see requirements-local.txt):"
+echo "  chmod +x scripts/mirrord-crew.sh && ./scripts/mirrord-crew.sh"
 echo ""

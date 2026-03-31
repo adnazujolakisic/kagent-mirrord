@@ -1,7 +1,8 @@
-from crewai import Agent, Crew, Task, Process
+from crewai import Agent, Crew, LLM, Process, Task
 
-# Single key: ANTHROPIC_API_KEY. Claude via CrewAI / Anthropic API. No web-search tool.
-_DEFAULT_LLM = "claude-3-5-sonnet-20241022"
+# ANTHROPIC_API_KEY in the environment — explicit Anthropic provider (bare model strings
+# in CrewAI 1.6 default to OpenAI). Haiku keeps RPM down (orchestrator uses Haiku too in claude-model-config).
+_CREW_LLM = LLM(model="claude-haiku-4-5", provider="anthropic")
 
 
 class ResearchCrew:
@@ -14,7 +15,7 @@ class ResearchCrew:
             to verify — be explicit if knowledge may be stale.""",
             tools=[],
             verbose=True,
-            llm=_DEFAULT_LLM,
+            llm=_CREW_LLM,
         )
 
         summarizer = Agent(
@@ -23,7 +24,7 @@ class ResearchCrew:
             backstory="""You are skilled at distilling complex information
             into clear, actionable summaries.""",
             verbose=True,
-            llm=_DEFAULT_LLM,
+            llm=_CREW_LLM,
         )
 
         research_task = Task(
@@ -57,6 +58,6 @@ class ResearchCrew:
 #     goal="Respond in exactly one sarcastic sentence. Never more.",
 #     backstory="You are deeply unimpressed by everything you read.",
 #     verbose=True,
-#     llm=_DEFAULT_LLM,
+#     llm=_CREW_LLM,
 # )
 # ---

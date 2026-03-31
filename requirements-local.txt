@@ -1,0 +1,7 @@
+# Local laptop (mirrord): same stack as crew/Dockerfile — use uv in the venv (plain pip often fails with resolution-too-deep).
+# ./scripts/mirrord-crew.sh creates .venv, installs uv + deps, then runs mirrord.
+# Manual: python3.12 -m venv .venv && .venv/bin/python -m pip install uv && .venv/bin/python -m uv pip install -r requirements-local.txt --python .venv/bin/python3
+kagent-crewai>=0.1.0
+crewai>=0.80.0
+anthropic>=0.40.0
+uvicorn>=0.30.0
