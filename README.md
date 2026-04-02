@@ -2,9 +2,8 @@
 
 **AI Hackathon Submission**
 
-> **One-sentence pitch:** Run a live kagent multi-agent orchestrator in Kubernetes, then develop and swap individual agents from your laptop in real-time—no Docker rebuild, no redeployment, same live cluster.
+Run a live kagent multi-agent orchestrator in Kubernetes, then develop and swap individual agents from your laptop in real-time—no Docker rebuild, no redeployment, same live cluster.
 
----
 
 ## The Problem: Multi-Agent Dev Loop is Slow
 
@@ -14,7 +13,6 @@ Building multi-agent systems in Kubernetes is powerful but frustrating to iterat
 - **Pain point:** Even for small agent tweaks (change a tool, adjust a prompt, add logic), you're stuck waiting for full CI/CD
 - **Worse:** You're not testing *inside* the live orchestrator—your agent is isolated, not actually in the call graph
 
-**Why it matters:** Multi-agent systems live or die on fast feedback loops. Slow iteration kills creativity and makes demos hard to prepare.
 
 ---
 
@@ -32,9 +30,9 @@ Building multi-agent systems in Kubernetes is powerful but frustrating to iterat
 
 ---
 
-## Why This Matters for Judges
+## Why This Matters
 
-| Category | Standard Approach | This Submission |
+| Category | Standard Approach | This Solution.  |
 |----------|-------------------|-----------------|
 | **Dev iteration** | 5–10 min (rebuild → deploy → test) | ~5 sec (restart local process) |
 | **Testing context** | Agent isolated, offline testing | Agent in live orchestrator chain, real traffic |
@@ -255,20 +253,6 @@ The **research-crew** agent includes:
 
 ---
 
-## Troubleshooting
-
-| Symptom | Solution |
-|---------|----------|
-| `kagent invoke` hangs on controller | Port-forward: `kubectl port-forward svc/kagent-controller 8083:8083 -n kagent` |
-| `ModuleNotFoundError: No module named 'kagent'` | Use `./scripts/mirrord-crew.sh` (manages `.venv` + uv); don't call Python directly |
-| mirrord: "cannot find target" | Check: `kubectl get deploy -n kagent` — must see `research-crew` |
-| `KAGENT_URL environment variable is not set` | Uses file `mirrord/research-crew.json` as-is; don't modify URLs manually |
-| Anthropic `rate_limit_error` | Using default Haiku; wait ~1 min or use Sonnet if you have higher quota |
-| Helm `403` from ghcr.io | Clear credentials: `helm registry logout ghcr.io && kagent install` |
-| Two research-crew pods (one old) | Old ReplicaSet lingering; remove it: `kubectl delete rs <rs-name> -n kagent` |
-| minikube: image not picked up | Use fixed tag `research-crew:mirrord-local` and re-run: `minikube image load research-crew:mirrord-local --overwrite=true` |
-
----
 
 ## What Makes This Different
 
