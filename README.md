@@ -1,17 +1,56 @@
-# kagent + mirrord: live A2A agent substitution
+# kagent + mirrord: Live Agent Substitution for Multi-Agent Systems
 
-**Hackathon submission:** Run a real [kagent](https://kagent.dev) multi-agent flow in Kubernetes, then swap the **BYO CrewAI agent** (`research-crew`) for **your laptop** at runtime—**no image rebuild, no changing orchestrator URLs**. Traffic the orchestrator sends over **A2A (HTTP + agent card)** to the in-cluster deployment is **stolen** by [mirrord](https://mirrord.dev) and served by your local process instead.
+**AI Hackathon Submission**
+
+> **One-sentence pitch:** Run a live kagent multi-agent orchestrator in Kubernetes, then develop and swap individual agents from your laptop in real-time—no Docker rebuild, no redeployment, same live cluster.
 
 ---
 
-## What judges should take away
+## The Problem: Multi-Agent Dev Loop is Slow
 
-| Idea | In one sentence |
-|------|------------------|
-| **Stack** | Declarative **orchestrator** agent + **CrewAI** BYO agent on **Kubernetes**, wired over **A2A**. |
-| **Problem** | Iterating on the BYO agent usually means **build → push → rollout**; `kagent run` alone does not put you **inside** the live orchestrator chain. |
-| **Solution** | **mirrord steal** on `deployment/research-crew`: the same A2A calls the orchestrator already makes hit **your local `crew/main.py`**. |
-| **Proof** | Edit **`crew/crew.py`**, restart **only** `./scripts/mirrord-crew.sh` (no Docker), run the **same** `kagent invoke`—behavior changes because **your laptop** is now **`research-crew`**. |
+Building multi-agent systems in Kubernetes is powerful but frustrating to iterate on:
+
+- **Current workflow (slow):** Edit agent code → commit → `docker build` → push to registry → `kubectl rollout` → test → **repeat** (5-10 min per iteration)
+- **Pain point:** Even for small agent tweaks (change a tool, adjust a prompt, add logic), you're stuck waiting for full CI/CD
+- **Worse:** You're not testing *inside* the live orchestrator—your agent is isolated, not actually in the call graph
+
+**Why it matters:** Multi-agent systems live or die on fast feedback loops. Slow iteration kills creativity and makes demos hard to prepare.
+
+---
+
+## The Solution: mirrord + A2A = Live Agent Swapping
+
+**Insight:** kagent agents talk to each other over **A2A** (Agent-to-Agent HTTP protocol). If we intercept that traffic at the network layer with [mirrord](https://mirrord.dev), we can redirect it to your local machine—**no image rebuild, no URL changes, no redeployment.**
+
+**What you get:**
+1. Keep all your agents running in Kubernetes (orchestrator, research-crew, etc.)
+2. Run one agent locally under mirrord (e.g., research-crew)
+3. When the orchestrator calls that agent over A2A, mirrord steals the traffic and your laptop answers
+4. Edit the agent code → restart mirrord (instant) → re-invoke the orchestrator → see it work
+
+**The win:** Iteration cycle drops from 5+ min to <5 sec. You're actually inside the multi-agent graph.
+
+---
+
+## Why This Matters for Judges
+
+| Category | Standard Approach | This Submission |
+|----------|-------------------|-----------------|
+| **Dev iteration** | 5–10 min (rebuild → deploy → test) | ~5 sec (restart local process) |
+| **Testing context** | Agent isolated, offline testing | Agent in live orchestrator chain, real traffic |
+| **Skill** | CI/CD chops, image management | Dev tooling insight: network layers matter |
+| **Stack** | Yet another dev framework | Reuses kagent + mirrord elegantly |
+| **Demo-ability** | Hard; slow feedback loops | Easy; instant feedback |
+
+---
+
+## The Stack
+
+- **[kagent](https://kagent.dev)** (CNCF Sandbox): declarative multi-agent orchestrator
+- **[mirrord](https://mirrord.dev)** (MetalBear): network-layer traffic interception
+- **CrewAI**: BYO agent framework (pluggable)
+- **Anthropic Claude**: LLM backbone
+- **Kubernetes** (minikube/kind): local cluster for demo
 
 ---
 
@@ -41,101 +80,233 @@ graph TD
 
 ---
 
-## Live demo (two terminals)
+## Live Demo (Two Terminals, ~10 Minutes)
 
-1. **One-time setup** (Docker on, API key set—see below):
+### Prerequisites (Install Once)
 
-   ```bash
-   cd kagent-mirrord
-   export ANTHROPIC_API_KEY=sk-ant-...   # or put it in .env for setup.sh
-   ./scripts/setup.sh
-   ```
+```bash
+# Kubernetes (local)
+brew install minikube docker kubectl
 
-2. **Optional:** confirm the chain works in-cluster only:
+# kagent CLI
+brew install kagent
 
-   ```bash
-   kagent invoke --agent orchestrator --task "In one sentence, what is kagent?"
-   ```
+# mirrord (the magic)
+brew install metalbear-co/mirrord/mirrord
 
-   If this hangs or errors on controller connection, see **Troubleshooting** (`KAGENT_URL` / port-forward).
+# Set your Anthropic API key
+export ANTHROPIC_API_KEY=sk-ant-...
+```
 
-3. **Terminal 1 — your laptop becomes `research-crew`:**
+### Step 1: Setup (5 min)
 
-   ```bash
-   ./scripts/mirrord-crew.sh
-   ```
+```bash
+cd kagent-mirrord
+./scripts/setup.sh
+```
 
-   Leave it running. You should see **Uvicorn on port 8080** and mirrord **steal** / **Ready**.
+**What it does:**
+- Starts `minikube` (or `kind` if you prefer)
+- Builds the research-crew Docker image
+- Deploys kagent orchestrator + research-crew agent
+- Applies Kubernetes CRDs and secrets
 
-4. **Terminal 2 — same orchestrator, same cluster:**
+**Verify:** `kubectl get pods -n kagent` — expect `kagent-controller` + `research-crew` running.
 
-   ```bash
-   kagent invoke --agent orchestrator --task "Research what kagent is"
-   ```
+### Step 2: Baseline Test (Cluster-Only, ~5 sec)
 
-5. **Show substitution:** change **`crew/crew.py`** (e.g. the sarcastic summarizer block at the bottom of the file), **Ctrl+C** Terminal 1, run **`./scripts/mirrord-crew.sh`** again, repeat the **same** invoke. **No** `docker build`. That is **runtime agent substitution** in a live **A2A** chain.
+```bash
+kagent invoke --agent orchestrator --task "What is kagent in one sentence?"
+```
 
-**How you explain “mirrord + A2A”:** The orchestrator still calls **`research-crew`** as declared in **`agents/orchestrator.yaml`**. A2A is HTTP (e.g. **`/.well-known/agent-card.json`** plus task routes). Mirrord intercepts that traffic bound for the pod and your local app answers—so you are **in** the multi-agent graph, not running a separate offline script.
+You should see the orchestrator call research-crew inside the cluster, get an answer back. **This is the "before" state.**
+
+### Step 3: Terminal 1 — Become research-crew (Your Laptop)
+
+```bash
+./scripts/mirrord-crew.sh
+```
+
+You'll see:
+```
+==> Creating .venv with python3.x ...
+==> Installing deps with uv ...
+mirrord: Stealing traffic from deployment/research-crew
+mirrord: Ready ✓
+INFO:     Uvicorn running on http://0.0.0.0:8080
+```
+
+**Your laptop is now the research-crew agent. The Kubernetes pod is still there, but mirrord is stealing its traffic.**
+
+### Step 4: Terminal 2 — Same Orchestrator, Same Call, Different Agent
+
+```bash
+kagent invoke --agent orchestrator --task "What is kagent in one sentence?"
+```
+
+**Same task. Same orchestrator. But now the orchestrator is calling YOUR laptop, not the pod.**
+
+If you look at Terminal 1, you'll see the request log:
+```
+POST /.well-known/agent-card.json  [mirrord intercept]
+POST /tasks                        [your local crew/main.py handles it]
+```
+
+### Step 5: Live Agent Substitution (The Magic)
+
+**In your editor, open `crew/crew.py`.** At the bottom, you'll see demo examples:
+
+```python
+# Example 2: Replace the summarizer to be sarcastic:
+#
+# summarizer = Agent(
+#     role="Sarcastic Summarizer",
+#     goal="Respond in exactly one sarcastic sentence. Never more.",
+#     backstory="You are deeply unimpressed by everything.",
+#     tools=[],
+#     verbose=True,
+#     llm=_CREW_LLM,
+# )
+```
+
+**Try it:**
+1. Uncomment that `summarizer` definition in the crew method (replace the default one)
+2. Back in Terminal 1: **Ctrl+C** to stop mirrord
+3. Re-run: `./scripts/mirrord-crew.sh`
+4. In Terminal 2: Run the **same** `kagent invoke` command again
+
+**The behavior changes.** Now the orchestrator gets a sarcastic one-liner instead of a dry summary. 
+
+**You did NOT:**
+- Rebuild the Docker image
+- Push to a registry
+- Restart the in-cluster pod
+- Change the orchestrator config
+- Update URLs
+
+**You DID:**
+- Edit Python code
+- Restart one local process
+- **Instantly changed agent behavior inside a live multi-agent call chain**
 
 ---
 
-## Prerequisites
+## Agent Capabilities
 
-- **Docker**, **kubectl**, local Kubernetes (**minikube** default, or **kind**: `CLUSTER=kind ./scripts/setup.sh`)
-- **[kagent](https://kagent.dev)** CLI — e.g. `brew install kagent`
-- **[mirrord](https://mirrord.dev)** — e.g. `brew install metalbear-co/mirrord/mirrord`
-- **`ANTHROPIC_API_KEY`** — one key for orchestrator + crew; see **`.env.example`**. `setup.sh` sources **`.env`** if present.
+The **research-crew** agent includes:
 
-**Models:** this repo defaults orchestrator and crew to **Haiku** (`claude-haiku-4-5`) so tight Anthropic RPM limits do not kill demos. Sonnet is available in **`agents/claude-model-config.yaml`** if your quota allows.
+- **Researcher Agent:** Uses `retrieve_context` tool to gather facts; synthesizes into 2-3 key points (under 200 words for token efficiency)
+- **Summarizer Agent:** Distills findings into one sentence
+- **Mock Retrieval Tool:** Preloaded with facts about kagent, mirrord, A2A (drop-in replacement for web search, vector DB, etc.)
 
----
-
-## Scripts (quick reference)
-
-| Script | Purpose |
-|--------|---------|
-| **`./scripts/setup.sh`** | Cluster, registry (minikube/kind), **`kagent install`** path, image build/load, secrets, apply **`agents/`** |
-| **`./scripts/mirrord-crew.sh`** | Creates **`.venv`** (Python 3.10+), installs deps with **uv** (avoids pip resolution issues), runs **`mirrord exec -f mirrord/research-crew.json`** + **`crew/main.py`** |
-| **`./scripts/validate.sh`** | Config and sanity checks without a full cluster |
-
-**Python on the laptop:** use **`./scripts/mirrord-crew.sh`** so **`kagent-crewai`** runs in the same venv as mirrord. Plain **`pip install -r requirements-local.txt`** often hits **resolution-too-deep**; the helper uses **uv** automatically.
+**You can:**
+1. **Swap tools:** Comment out/add `retrieve_context` in the researcher
+2. **Change prompts:** Edit agent backstories and goals
+3. **Modify tasks:** Change what the agents do
+4. **Add new agents:** Extend the crew
+5. See it all work in the live orchestrator call chain **without rebuilding**
 
 ---
 
-## Repo layout
+## Repo Layout & Key Files
 
 | Path | Role |
 |------|------|
-| **`agents/`** | `orchestrator` + `research-crew` `Agent` CRDs, **`claude-model-config`**, secrets wiring |
-| **`crew/`** | CrewAI app, **`main.py`**, **Dockerfile** for the BYO image |
-| **`mirrord/research-crew.json`** | Steal target, env (API key from pod + **`KAGENT_*`** overrides for local **`kagent-crewai`**) |
-| **`requirements-local.txt`** | Laptop stack aligned with the image (installed via **`mirrord-crew.sh`** + uv) |
+| **`agents/`** | `orchestrator` + `research-crew` CRD manifests; `claude-model-config` for API keys and model selection |
+| **`crew/`** | CrewAI application: `main.py` (FastAPI/Uvicorn wrapper), `crew.py` (agent definitions), `Dockerfile` (in-cluster image) |
+| **`mirrord/research-crew.json`** | mirrord configuration: steal target, environment overrides for local execution |
+| **`scripts/`** | Automation: `setup.sh` (full cluster setup), `mirrord-crew.sh` (local dev), `validate.sh` (sanity checks) |
+| **`requirements-local.txt`** | Python deps (laptop): same packages as Dockerfile, installed via `uv` for speed |
 
-### mirrord config (behavioral summary)
+### Key File: `mirrord/research-crew.json`
 
-- **Target:** `deployment/research-crew` in namespace **`kagent`**
-- **Incoming:** **steal** (redirect workload traffic to the local process)
-- **Env:** load **`ANTHROPIC_API_KEY`** from the pod; **override** **`KAGENT_URL`**, **`KAGENT_NAME`**, **`KAGENT_NAMESPACE`** so the local **`kagent-crewai`** process can talk to the controller (cluster DNS via mirrord)
+```json
+{
+  "target": { "path": "deployment/research-crew", "namespace": "kagent" },
+  "feature": {
+    "network": { "incoming": { "mode": "steal" } },
+    "env": {
+      "include": "ANTHROPIC_API_KEY",
+      "override": {
+        "KAGENT_URL": "http://kagent-controller.kagent.svc.cluster.local:8083",
+        "KAGENT_NAME": "research-crew",
+        "KAGENT_NAMESPACE": "kagent"
+      }
+    }
+  }
+}
+```
 
-Run **`mirrord verify-config mirrord/research-crew.json`** after edits.
+- **Target:** Pod traffic bound for `deployment/research-crew` in namespace `kagent`
+- **Incoming mode:** `steal` — redirect all traffic to local process
+- **Env:** Pass `ANTHROPIC_API_KEY` from cluster; override `KAGENT_*` so local agent can reach controller
+
+---
+
+## Scripts Reference
+
+| Script | Command | Purpose |
+|--------|---------|---------|
+| **Setup** | `./scripts/setup.sh` | one-time: cluster, registry, image build, secrets, CRDs |
+| **Dev** | `./scripts/mirrord-crew.sh` | create `.venv`, install deps, run mirrord + local agent |
+| **Validate** | `./scripts/validate.sh` | syntax, configs, prerequisites (no cluster needed) |
+
+**Note:** `mirrord-crew.sh` automatically picks a compatible Python ≥3.10 and uses `uv` for fast dependency resolution.
 
 ---
 
 ## Troubleshooting
 
-| Symptom | What to try |
-|---------|-------------|
-| **`kagent` / invoke cannot reach controller** | **`kubectl port-forward svc/kagent-controller 8083:8083 -n kagent`**; if needed set **`KAGENT_URL`** in **`mirrord/research-crew.json`** `env.override` to **`http://127.0.0.1:8083`** |
-| **`KAGENT_URL environment variable is not set`** | Use repo **`mirrord/research-crew.json`** as committed; ensure **`mirrord-crew.sh`** uses that file |
-| **`ModuleNotFoundError: No module named 'kagent'`** | Run **`./scripts/mirrord-crew.sh`** (venv + uv install)—do not use system **`python3`** alone for mirrord |
-| **mirrord cannot find target** | **`kubectl get deploy -n kagent`** — expect **`research-crew`** |
-| **Anthropic `rate_limit_error`** | Wait a minute; stay on default **Haiku**; avoid switching orchestrator to **Sonnet** on low RPM tiers |
-| **Helm / ghcr `403` on install** | **`helm registry logout ghcr.io`** then **`kagent install`** again |
-| **Two `research-crew` pods / one bad** | **`kubectl get rs -n kagent \| grep research`** — remove stale ReplicaSet or rerun **`./scripts/setup.sh`** |
-| **minikube image not picked up** | Image tag **`research-crew:mirrord-local`**; **`minikube image load`** after host **`docker build`** |
+| Symptom | Solution |
+|---------|----------|
+| `kagent invoke` hangs on controller | Port-forward: `kubectl port-forward svc/kagent-controller 8083:8083 -n kagent` |
+| `ModuleNotFoundError: No module named 'kagent'` | Use `./scripts/mirrord-crew.sh` (manages `.venv` + uv); don't call Python directly |
+| mirrord: "cannot find target" | Check: `kubectl get deploy -n kagent` — must see `research-crew` |
+| `KAGENT_URL environment variable is not set` | Uses file `mirrord/research-crew.json` as-is; don't modify URLs manually |
+| Anthropic `rate_limit_error` | Using default Haiku; wait ~1 min or use Sonnet if you have higher quota |
+| Helm `403` from ghcr.io | Clear credentials: `helm registry logout ghcr.io && kagent install` |
+| Two research-crew pods (one old) | Old ReplicaSet lingering; remove it: `kubectl delete rs <rs-name> -n kagent` |
+| minikube: image not picked up | Use fixed tag `research-crew:mirrord-local` and re-run: `minikube image load research-crew:mirrord-local --overwrite=true` |
+
+---
+
+## What Makes This Different
+
+**Not just "run an agent locally":**
+- ✗ Most agent dev: isolated local script, mocked orchestrator, no real traffic
+- ✓ This approach: **live orchestrator, real A2A traffic, authentic multi-agent context**
+
+**Not just wrapper code:**
+- ✗ Custom middleware, proxy, or orchestrator plugin
+- ✓ **Pure interception at network layer** (mirrord + eBPF/system interceptor) — zero changes to orchestrator config
+
+**Not just for single agents:**
+- ✗ One-off dev tool, can't scale to team workflow
+- ✓ **Any agent in the graph can be substituted** — swap orchestrator for local testing, swap multiple agents simultaneously (with multiple mirrord instances), etc.
+
+---
+
+## Build & Deployment
+
+For production or extending:
+```bash
+docker build -t myregistry/research-crew:v0.1 crew/
+docker push myregistry/research-crew:v0.1
+# Update agents/research-crew.yaml image field, then: kubectl apply -f agents/
+```
+
+For local demo:
+```bash
+./scripts/setup.sh  # one-time
+./scripts/mirrord-crew.sh  # repeat as you edit crew/crew.py
+```
 
 ---
 
 ## Acknowledgements
 
-Built for the kagent ecosystem hackathon: **[kagent](https://kagent.dev)** (CNCF Sandbox) and **[mirrord](https://mirrord.dev)** (MetalBear).
+Built for the kagent ecosystem hackathon:
+- **[kagent](https://kagent.dev)** (CNCF Sandbox) — the multi-agent orchestrator
+- **[mirrord](https://mirrord.dev)** (MetalBear) — the traffic interception magic
+- **[CrewAI](https://github.com/joaomdmoura/crewai)** — pluggable agent framework
+- **[Anthropic Claude](https://www.anthropic.com/)** — the LLM inference

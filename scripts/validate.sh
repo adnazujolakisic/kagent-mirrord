@@ -1,5 +1,25 @@
 #!/bin/bash
-# Validation script - runs checks that don't require Docker/K8s
+
+# validate.sh: Pre-flight validation (no cluster required)
+#
+# Purpose:
+#   Quick sanity checks before running setup.sh or dev iterations.
+#   Verifies Python syntax, mirrord config, prerequisites, and YAML.
+#
+# What it checks:
+#   1. mirrord config syntax (mirrord verify-config)
+#   2. Python syntax (crew/main.py, crew/crew.py)
+#   3. Prerequisites (kubectl, kagent, mirrord, docker)
+#   4. YAML validity (Agent CRDs; skips if no cluster)
+#
+# Usage:
+#   ./scripts/validate.sh
+#   Runs quickly; no build, no cluster needed.
+#
+# Exit code:
+#   0 = all checks pass
+#   1 = any check fails (see output for details)
+
 set -e
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

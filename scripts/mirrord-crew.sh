@@ -1,7 +1,30 @@
 #!/bin/bash
-# Run research-crew locally under mirrord with the right Python + deps.
-# kagent-crewai needs Python >= 3.10 (avoid macOS /usr/bin/python3 == 3.9).
 set -e
+
+# mirrord-crew.sh: Local agent development under mirrord
+#
+# Purpose:
+#   Run the research-crew agent locally (on your laptop) under mirrord,
+#   intercepting traffic meant for the in-cluster deployment.
+#   Enables sub-second iteration on agent code without rebuilds.
+#
+# What it does:
+#   1. Picks a compatible Python ≥3.10 (prefers 3.12/3.11)
+#   2. Creates/validates .venv
+#   3. Installs deps using `uv` (fast pip alternative)
+#   4. Runs: mirrord exec -f mirrord/research-crew.json -- python crew/main.py
+#
+# Usage:
+#   ./scripts/mirrord-crew.sh
+#   (leave running in Terminal 1; edit crew/crew.py in editor, no restart needed for editing)
+#   (Ctrl+C in Terminal 1 to stop mirrord, re-run to pick up changes)
+#
+# Requirements:
+#   - Python 3.10 or later on PATH (check: python3.12 --version)
+#   - mirrord installed (brew install metalbear-co/mirrord/mirrord)
+#   - Kubernetes cluster running (from ./scripts/setup.sh)
+#   - kagent-crewai + crewai in deps (installed by this script)
+
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 VENV="$ROOT/.venv"

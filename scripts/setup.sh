@@ -1,4 +1,30 @@
 #!/bin/bash
+
+# setup.sh: Complete cluster and application initialization
+#
+# Purpose:
+#   One-command setup for the kagent + mirrord demo.
+#   Handles Kubernetes cluster, Docker registry, agent deployment, and secrets.
+#
+# What it does:
+#   1. Starts minikube (or kind) if not running
+#   2. Sets up local Docker registry (needed for image loading)
+#   3. Installs kagent (orchestration framework)
+#   4. Creates Anthropic API key secret
+#   5. Builds research-crew Docker image
+#   6. Deploys orchestrator + research-crew agents
+#
+# Usage:
+#   ANTHROPIC_API_KEY=sk-ant-... ./scripts/setup.sh
+#   Or: export ANTHROPIC_API_KEY && ./scripts/setup.sh (sources .env if present)
+#
+# Cluster choice:
+#   minikube (default): CLUSTER=minikube ./scripts/setup.sh
+#   kind:              CLUSTER=kind ./scripts/setup.sh
+#
+# Idempotent:
+#   Safe to run multiple times. Uses kubectl --dry-run for secrets/CRDs.
+
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
