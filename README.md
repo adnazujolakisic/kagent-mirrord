@@ -1,4 +1,4 @@
-# kagent + mirrord: Live Agent Substitution for Multi-Agent Systems
+# kagent + mirrord: runtime substitution of BYO agents in multi-agent A2A chains
 
 **AI Hackathon Submission**
 
