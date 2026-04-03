@@ -1,6 +1,6 @@
 # kagent + mirrord: hook mirrord to real kagent traffic
 
-**AI Hackathon submission — for judges**
+**AI Hackathon submission s**
 
 **Thesis:** **[kagent](https://kagent.dev)** runs multi-agent workloads on Kubernetes; **[mirrord](https://mirrord.dev)** is a strong fit for **developer velocity** on that stack because it lets you **run one agent locally** while the **live orchestrator** still sends it the **same production-style traffic**—without rebuilding images or changing how agents are wired together.
 
@@ -8,19 +8,6 @@ This repo is a minimal demo: a declarative **orchestrator** agent in-cluster cal
 
 ---
 
-## What A2A has to do with it
-
-**A2A (Agent-to-Agent)** is how these agents **talk**: discovery via an **agent card**, then **JSON-RPC over HTTP** to the URL on that card. That is the **contract between** kagent-managed agents—composable, HTTP-shaped, the same in staging and prod.
-
-**mirrord is not A2A.** It does not implement cards or JSON-RPC. It **re-homes network traffic** so connections that would have reached a **pod** for that agent can be **handled by your local process** instead.
-
-**Why that pairing matters:** The orchestrator already speaks A2A to “whatever backs `research-crew` in the cluster.” Mirrord lets **you** be that backing process during development—so **A2A stays the story** (stable URLs, real call graph); **mirrord is how your IDE and `.venv` become the implementation** without breaking that story.
-
-**Gotcha for the demo:** The agent card’s **`url`** must stay a **Kubernetes Service DNS** name (e.g. `http://research-crew.kagent.svc.cluster.local:8080/`), not `127.0.0.1`, so in-cluster callers still target the Service; mirrord intercepts on the workload you target.
-
----
-
-## Why judges should care about mirrord here
 
 | Building BYO agents on kagent alone | + mirrord while you iterate |
 |-------------------------------------|-----------------------------|
@@ -174,15 +161,6 @@ Edit `crew/crew.py` (e.g. uncomment the “Sarcastic Summarizer” example at th
 
 **Note:** After changing `crew/crew.py`, restart `mirrord-crew.sh` so `ResearchCrew` reloads.
 
----
-
-## Production-ish deploy
-
-```bash
-docker build -t myregistry/research-crew:v0.1 crew/
-docker push myregistry/research-crew:v0.1
-# Point agents/research-crew.yaml `image` at that tag, then kubectl apply.
-```
 
 ---
 
