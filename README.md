@@ -1,6 +1,6 @@
-# kagent + mirrord: hook mirrord to real kagent traffic
+# kagent + mirrord: develop BYO agents locally, stay in the live graph
 
-**AI Hackathon submission s**
+**AI Hackathon submission**
 
 **Thesis:** **[kagent](https://kagent.dev)** runs multi-agent workloads on Kubernetes; **[mirrord](https://mirrord.dev)** is a strong fit for **developer velocity** on that stack because it lets you **run one agent locally** while the **live orchestrator** still sends it the **same production-style traffic**—without rebuilding images or changing how agents are wired together.
 
