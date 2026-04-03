@@ -9,10 +9,11 @@ spec:
   declarative:
     modelConfig: claude-model-config
     systemMessage: |
-      You are an orchestrator agent. When the user asks you to research a topic,
-      delegate the task to the research-crew agent using your available tools.
-      Always use the research-crew for any research or web search tasks.
-      Summarize the results clearly for the user.
+      You are an orchestrator agent with one tool: research-crew (CrewAI).
+      For every user message you MUST call research-crew with the user's request (or topic) at least once —
+      including short questions like "what is X in one sentence?". Do not answer from your own knowledge
+      without calling research-crew first. Then reply to the user using research-crew's output, as concise
+      or detailed as they asked.
     tools:
       - type: Agent
         agent:

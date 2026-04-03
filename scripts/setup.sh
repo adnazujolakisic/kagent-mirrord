@@ -56,8 +56,14 @@ command -v docker >/dev/null || { echo "install docker"; exit 1; }
 if [ "$CLUSTER" = "minikube" ]; then
   command -v minikube >/dev/null || { echo "install minikube: brew install minikube"; exit 1; }
 
-  echo "==> starting minikube"
-  minikube status >/dev/null 2>&1 || minikube start
+  echo "==> ensuring minikube is running (start is idempotent)"
+  minikube start
+  if ! kubectl cluster-info --request-timeout=20s >/dev/null 2>&1; then
+    echo "kubectl cannot reach the API server (e.g. connection refused on 127.0.0.1)."
+    echo "Docker must be running. Try:  minikube delete && minikube start"
+    echo "Then re-run:  ./scripts/setup.sh"
+    exit 1
+  fi
 else
   command -v kind >/dev/null || { echo "install kind: brew install kind"; exit 1; }
   REGISTRY_PORT="5001"

@@ -57,23 +57,25 @@ Building multi-agent systems in Kubernetes is powerful but frustrating to iterat
 **Without mirrord** — the in-cluster pod handles all A2A to `research-crew`:
 
 ```mermaid
-graph TD
-    U[You: kagent invoke] --> O[Orchestrator in cluster]
-    O -->|A2A HTTP| RC[research-crew pod]
-    RC --> O
-    LP[Your laptop] -.-x|not in the chain| RC
+graph LR
+    U["You<br/>kagent invoke"] --> O["Orchestrator<br/>(cluster)"]
+    O -->|"A2A HTTP<br/>request"| RC["research-crew<br/>pod"]
+    RC -->|response| O
+    style U fill:#f9f,stroke:#333
+    style RC fill:#bbf,stroke:#333
 ```
 
-**With mirrord** — A2A to the deployment is tunneled to your machine; orchestrator config is unchanged:
+**With mirrord** — A2A traffic is intercepted and tunneled to your local machine:
 
 ```mermaid
-graph TD
-    U[You: kagent invoke] --> O[Orchestrator in cluster]
-    O -->|A2A still aimed at research-crew| RC[Target deployment]
-    RC --> MA[mirrord agent]
-    MA -->|tunnel| LP[Local uvicorn / CrewAI]
-    LP --> MA
-    MA --> O
+graph LR
+    U["You<br/>kagent invoke"] --> O["Orchestrator<br/>(cluster)"]
+    O -->|"A2A to<br/>research-crew"| I["mirrord<br/>intercepts"]
+    I -->|tunnel| LP["Your Laptop<br/>research-crew<br/>running locally"]
+    LP -->|response| I
+    I -->|back to<br/>cluster| O
+    style U fill:#f9f,stroke:#333
+    style LP fill:#9f9,stroke:#333
 ```
 
 ---
@@ -100,6 +102,7 @@ export ANTHROPIC_API_KEY=sk-ant-...
 
 ```bash
 cd kagent-mirrord
+minikube start
 ./scripts/setup.sh
 ```
 
@@ -144,11 +147,12 @@ kagent invoke --agent orchestrator --task "What is kagent in one sentence?"
 
 **Same task. Same orchestrator. But now the orchestrator is calling YOUR laptop, not the pod.**
 
-If you look at Terminal 1, you'll see the request log:
+If you look at Terminal 1, you'll see access logs like:
+```text
+GET /.well-known/agent-card.json   # discovery
+POST / HTTP/1.1                    # A2A JSON-RPC (default path is `/`, not `.well-known`)
 ```
-POST /.well-known/agent-card.json  [mirrord intercept]
-POST /tasks                        [your local crew/main.py handles it]
-```
+The agent card’s **`url`** must be the **Kubernetes Service** for `research-crew` (e.g. `http://research-crew.kagent.svc.cluster.local:8080/`), not `127.0.0.1`, or in-cluster callers will POST to **their own** loopback and you’ll only see GETs for the card.
 
 ### Step 5: Live Agent Substitution (The Magic)
 

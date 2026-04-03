@@ -27,15 +27,46 @@ except Exception as e:
     logger.error(f"✗ Failed to initialize ResearchCrew: {e}", exc_info=True)
     raise
 
+# AgentCard.url is what *callers* use for JSON-RPC POST / (not GET agent-card only).
+# http://127.0.0.1:8080/ makes in-cluster orchestrators POST to their own loopback — no traffic
+# to this workload. Use the Service DNS name so traffic hits research-crew → mirrord steal works.
+_agent_card_url = os.getenv(
+    "AGENT_CARD_PUBLIC_URL",
+    "http://research-crew.kagent.svc.cluster.local:8080/",
+).strip()
+if not _agent_card_url.endswith("/"):
+    _agent_card_url += "/"
+logger.info("AgentCard public url (A2A POST target): %s", _agent_card_url)
+
 app = KAgentApp(
     crew=crew,
     agent_card={
         "name": "research-crew",
         "description": "A research-style agent with retrieval capabilities that synthesizes findings into clear, actionable insights",
         "version": "0.1.0",
-        "url": "http://127.0.0.1:8080/",
-        "skills": ["research", "synthesis", "summarization"],
-        "capabilities": {"streaming": True, "tools": True},
+        "url": _agent_card_url,
+        # a2a-sdk AgentCard expects AgentSkill objects, not plain strings (id, name, description, tags required).
+        "skills": [
+            {
+                "id": "research",
+                "name": "Research",
+                "description": "Gather and structure findings on a topic.",
+                "tags": ["research"],
+            },
+            {
+                "id": "synthesis",
+                "name": "Synthesis",
+                "description": "Combine information into coherent analysis.",
+                "tags": ["synthesis"],
+            },
+            {
+                "id": "summarization",
+                "name": "Summarization",
+                "description": "Produce concise summaries of research output.",
+                "tags": ["summarization"],
+            },
+        ],
+        "capabilities": {"streaming": True},
         "defaultInputModes": ["text"],
         "defaultOutputModes": ["text"],
     },
@@ -50,6 +81,7 @@ if __name__ == "__main__":
     
     Environment variables:
       - ANTHROPIC_API_KEY: Required. Claude API key (passed from pod or .env).
+      - AGENT_CARD_PUBLIC_URL: URL in the agent card for A2A RPC (default: research-crew k8s Service).
       - HOST: Uvicorn bind address (default: 0.0.0.0).
       - PORT: Uvicorn port (default: 8080).
     """
